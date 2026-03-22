@@ -19,6 +19,15 @@ import { useAppSettings } from "~/appSettings";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
+  AlertDialog,
+  AlertDialogClose,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogPopup,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
+import {
   Dialog,
   DialogDescription,
   DialogFooter,
@@ -161,6 +170,7 @@ export default function GitActionsControl({ gitCwd, activeThreadId }: GitActions
     [activeThreadId],
   );
   const queryClient = useQueryClient();
+  const [confirmInitOpen, setConfirmInitOpen] = useState(false);
   const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
   const [dialogCommitMessage, setDialogCommitMessage] = useState("");
   const [excludedFiles, setExcludedFiles] = useState<ReadonlySet<string>>(new Set());
@@ -632,19 +642,45 @@ export default function GitActionsControl({ gitCwd, activeThreadId }: GitActions
     [gitCwd, threadToastData],
   );
 
+  const confirmGitInit = useCallback(() => {
+    if (initMutation.isPending) return;
+    setConfirmInitOpen(false);
+    initMutation.mutate();
+  }, [initMutation]);
+
   if (!gitCwd) return null;
 
   return (
     <>
       {!isRepo ? (
-        <Button
-          variant="outline"
-          size="xs"
-          disabled={initMutation.isPending}
-          onClick={() => initMutation.mutate()}
-        >
-          {initMutation.isPending ? "Initializing..." : "Initialize Git"}
-        </Button>
+        <>
+          <Button
+            variant="outline"
+            size="xs"
+            disabled={initMutation.isPending}
+            onClick={() => setConfirmInitOpen(true)}
+          >
+            {initMutation.isPending ? "Initializing..." : "Initialize Git"}
+          </Button>
+          <AlertDialog open={confirmInitOpen} onOpenChange={setConfirmInitOpen}>
+            <AlertDialogPopup>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Initialize Git repository?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will run{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 text-xs">git init</code> in{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 text-xs break-all">{gitCwd}</code>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogClose render={<Button variant="outline" />}>Cancel</AlertDialogClose>
+                <Button disabled={initMutation.isPending} onClick={confirmGitInit}>
+                  Initialize
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogPopup>
+          </AlertDialog>
+        </>
       ) : (
         <Group aria-label="Git actions">
           {quickActionDisabledReason ? (
